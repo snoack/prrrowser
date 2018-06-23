@@ -1,5 +1,5 @@
 {
-  "name": "Show me Cats",
+  "name": "Prrrowser",
   "description": "Browser extension that replaces images with similar images showing cats",
   "version": "0.1",
   "manifest_version": 2,
