@@ -19,6 +19,21 @@ document.addEventListener("load", event =>
         if (url)
         {
           elem.src = url;
+          elem.removeAttribute("srcset");
+
+          if (elem.parentElement && elem.parentElement.localName == "picture")
+          {
+            for (let i = 0; i < elem.parentElement.children.length; i++)
+            {
+              let sibling = elem.parentElement.children[i];
+              if (sibling.localName == "source")
+              {
+                sibling.remove();
+                i--;
+              }
+            }
+          }
+
           elem._replaced = true;
         }
 
