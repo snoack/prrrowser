@@ -1,7 +1,7 @@
 document.addEventListener("load", event =>
 {
   let elem = event.target;
-  if (elem.localName == "img" && elem.alt && !elem._replaced)
+  if (elem.localName == "img" && elem.alt && elem.src != elem._newSrc)
   {
     let origVisibilityValue = elem.style.getPropertyValue("visibility");
     let origVisibilityPriority = elem.style.getPropertyPriority("visibility");
@@ -18,7 +18,7 @@ document.addEventListener("load", event =>
       {
         if (url)
         {
-          elem.src = url;
+          elem.src = elem._newSrc = url;
           elem.removeAttribute("srcset");
 
           if (elem.parentElement && elem.parentElement.localName == "picture")
@@ -33,8 +33,6 @@ document.addEventListener("load", event =>
               }
             }
           }
-
-          elem._replaced = true;
         }
 
         elem.style.setProperty("visibility", origVisibilityValue,
