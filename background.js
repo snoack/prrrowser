@@ -34,6 +34,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
           });
           image.src = JSON.parse(doc.querySelector(".rg_meta").textContent).ou;
         });
+      })
+      .catch(error =>
+      {
+        cache.delete(msg.keywords);
+        throw error;
       });
 
     while (cache.size >= CACHE_SIZE)
