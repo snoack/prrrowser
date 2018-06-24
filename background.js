@@ -1,6 +1,23 @@
 const CACHE_SIZE = 150;
+const DEFAULT_TOPIC = "cats";
 
 let cache = new Map();
+let topic = DEFAULT_TOPIC;
+
+chrome.storage.local.get("topic", items =>
+{
+  if (items.topic)
+    topic = items.topic;
+});
+
+chrome.storage.onChanged.addListener(changes =>
+{
+  if (changes.topic)
+  {
+    topic = changes.topic.newValue || DEFAULT_TOPIC;
+    cache.clear();
+  }
+});
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
 {
@@ -8,7 +25,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
   if (!promise)
   {
     promise = fetch("https://www.google.com/search?tbm=isch&q=" +
-                    encodeURIComponent(msg.keywords + " cats"))
+                    encodeURIComponent(msg.keywords + " " + topic))
       .then(response => response.text())
       .then(source =>
       {
