@@ -1,3 +1,5 @@
+const CACHE_SIZE = 150;
+
 let cache = new Map();
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
@@ -12,34 +14,38 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
       {
         let parser = new DOMParser();
         let doc = parser.parseFromString(source, "text/html");
-        let meta = doc.querySelector(".rg_meta");
-        return [JSON.parse(meta.textContent).ou,
-                doc.querySelector("#search img").src];
+
+        return new Promise((resolve, reject) =>
+        {
+          let image = new Image();
+          image.addEventListener("load", () =>
+          {
+            resolve(image);
+          });
+          image.addEventListener("error", () =>
+          {
+            let thumbnail = new Image();
+            thumbnail.addEventListener("load", () =>
+            {
+              resolve(thumbnail);
+            });
+            thumbnail.addEventListener("error", reject);
+            thumbnail.src = doc.querySelector("#search img").src;
+          });
+          image.src = JSON.parse(doc.querySelector(".rg_meta").textContent).ou;
+        });
       });
 
-    cache.set(msg.keywords, promise);
+    while (cache.size >= CACHE_SIZE)
+      cache.delete(cache.keys().next().value);
   }
+  else
+  {
+    cache.delete(msg.keywords);
+  }
+  cache.set(msg.keywords, promise);
 
   promise
-    .then(urls => new Promise((resolve, reject) =>
-    {
-      let image = new Image();
-      image.addEventListener("load", () =>
-      {
-        resolve(image);
-      });
-      image.addEventListener("error", () =>
-      {
-        let thumbnail = new Image();
-        thumbnail.addEventListener("load", () =>
-        {
-          resolve(thumbnail);
-        });
-        thumbnail.addEventListener("error", reject);
-        thumbnail.src = urls[1];
-      });
-      image.src = urls[0];
-    }))
     .then(image =>
     {
       let {width, height} = msg;
