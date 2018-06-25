@@ -8,11 +8,18 @@
     "48": "img/icon48.png",
     "128": "img/icon128.png"
   },
-  "browser_action": {},
+  "browser_action": {
+    "default_icon": {
+      "16": "img/icon16.png",
+      "48": "img/icon48.png",
+      "128": "img/icon128.png"
+    }
+  },
   "permissions": [
     "storage",
     "contextMenus",
-    "tabs"
+    "tabs",
+    "<all_urls>"
   ],
   "background": {
     "scripts": ["background.js"]
