@@ -4,21 +4,6 @@ const DEFAULT_TOPIC = "cats";
 let cache = new Map();
 let topic, whitelist;
 
-chrome.storage.local.get(["topic", "whitelist"], items =>
-{
-  topic = items.topic || DEFAULT_TOPIC;
-  whitelist = new Set(items.whitelist);
-});
-
-chrome.storage.onChanged.addListener(changes =>
-{
-  if (changes.topic)
-  {
-    topic = changes.topic.newValue || DEFAULT_TOPIC;
-    cache.clear();
-  }
-});
-
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
 {
   if (whitelist.has(new URL(sender.tab.url).host))
@@ -110,26 +95,39 @@ function updateContextMenu()
 {
   chrome.tabs.query({active: true, lastFocusedWindow: true}, tabs =>
   {
-    let {protocol, host} = new URL(tabs[0].url);
+    chrome.contextMenus.removeAll();
 
-    chrome.contextMenus.removeAll(() =>
+    let {protocol, host} = new URL(tabs[0].url);
+    if (protocol == "https:" || protocol == "http:")
     {
-      if (protocol == "https:" || protocol == "http:")
+      chrome.contextMenus.create({
+        type: "checkbox",
+        checked: whitelist.has(host),
+        title: "Disable on " + host,
+        contexts: ["browser_action"],
+        onclick(details)
+        {
+          if (details.checked)
+            whitelist.add(host);
+          else
+            whitelist.delete(host);
+          chrome.storage.local.set({whitelist: Array.from(whitelist)});
+        }
+      });
+    }
+
+    chrome.contextMenus.create({
+      id: "dogs",
+      type: "checkbox",
+      checked: topic == "dogs",
+      title: "Show dogs",
+      contexts: ["browser_action"],
+      onclick(details)
       {
-        chrome.contextMenus.create({
-          type: "checkbox",
-          checked: whitelist.has(host),
-          title: "Disable on " + host,
-          contexts: ["browser_action"],
-          onclick(details)
-          {
-            if (details.checked)
-              whitelist.add(host);
-            else
-              whitelist.delete(host);
-            chrome.storage.local.set({whitelist: Array.from(whitelist)});
-          }
-        });
+        if (details.checked)
+          chrome.storage.local.set({topic: "dogs"});
+        else
+          chrome.storage.local.remove("topic");
       }
     });
   });
@@ -149,4 +147,19 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>
     updateContextMenu();
 });
 
-updateContextMenu();
+chrome.storage.local.get(["topic", "whitelist"], items =>
+{
+  topic = items.topic || DEFAULT_TOPIC;
+  whitelist = new Set(items.whitelist);
+  updateContextMenu();
+});
+
+chrome.storage.onChanged.addListener(changes =>
+{
+  if (changes.topic)
+  {
+    topic = changes.topic.newValue || DEFAULT_TOPIC;
+    cache.clear();
+    updateContextMenu();
+  }
+});
