@@ -1,8 +1,19 @@
 let checkbox = document.querySelector("input[name=dogs]");
 
+function updateCheckBox(topic)
+{
+  checkbox.checked = topic == "dogs";
+}
+
 chrome.storage.local.get("topic", items =>
 {
-  checkbox.checked = items.topic == "dogs";
+  updateCheckBox(items.topic);
+});
+
+chrome.storage.onChanged.addListener(change =>
+{
+  if (change.topic)
+    updateCheckBox(change.topic.newValue);
 });
 
 checkbox.addEventListener("change", event =>
