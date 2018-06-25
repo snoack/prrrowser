@@ -2,12 +2,12 @@ const CACHE_SIZE = 150;
 const DEFAULT_TOPIC = "cats";
 
 let cache = new Map();
-let topic = DEFAULT_TOPIC;
+let topic, whitelist;
 
-chrome.storage.local.get("topic", items =>
+chrome.storage.local.get(["topic", "whitelist"], items =>
 {
-  if (items.topic)
-    topic = items.topic;
+  topic = items.topic || DEFAULT_TOPIC;
+  whitelist = new Set(items.whitelist);
 });
 
 chrome.storage.onChanged.addListener(changes =>
@@ -21,6 +21,12 @@ chrome.storage.onChanged.addListener(changes =>
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
 {
+  if (whitelist.has(new URL(sender.tab.url).host))
+  {
+    sendResponse(null);
+    return false;
+  }
+
   let promise = cache.get(msg.keywords);
   if (!promise)
   {
@@ -99,3 +105,48 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
 
   return true;
 });
+
+function updateContextMenu()
+{
+  chrome.tabs.query({active: true, lastFocusedWindow: true}, tabs =>
+  {
+    let {protocol, host} = new URL(tabs[0].url);
+
+    chrome.contextMenus.removeAll(() =>
+    {
+      if (protocol == "https:" || protocol == "http:")
+      {
+        chrome.contextMenus.create({
+          type: "checkbox",
+          checked: whitelist.has(host),
+          title: "Disable on " + host,
+          contexts: ["browser_action"],
+          onclick(details)
+          {
+            if (details.checked)
+              whitelist.add(host);
+            else
+              whitelist.delete(host);
+            chrome.storage.local.set({whitelist: Array.from(whitelist)});
+          }
+        });
+      }
+    });
+  });
+}
+
+chrome.tabs.onActivated.addListener(updateContextMenu);
+
+chrome.windows.onFocusChanged.addListener(windowId =>
+{
+  if (windowId != chrome.windows.WINDOW_ID_NONE)
+    updateContextMenu();
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>
+{
+  if ("url" in changeInfo && tab.active)
+    updateContextMenu();
+});
+
+updateContextMenu();
