@@ -97,23 +97,27 @@ function updateContextMenu()
   {
     chrome.contextMenus.removeAll();
 
-    let {protocol, host} = new URL(tabs[0].url);
-    if (protocol == "https:" || protocol == "http:")
+    if (tabs.length > 0)
     {
-      chrome.contextMenus.create({
-        type: "checkbox",
-        checked: whitelist.has(host),
-        title: "Disable on " + host,
-        contexts: ["browser_action"],
-        onclick(details)
-        {
-          if (details.checked)
-            whitelist.add(host);
-          else
-            whitelist.delete(host);
-          chrome.storage.local.set({whitelist: Array.from(whitelist)});
-        }
-      });
+      let {protocol, host} = new URL(tabs[0].url);
+
+      if (protocol == "https:" || protocol == "http:")
+      {
+        chrome.contextMenus.create({
+          type: "checkbox",
+          checked: whitelist.has(host),
+          title: "Disable on " + host,
+          contexts: ["browser_action"],
+          onclick(details)
+          {
+            if (details.checked)
+              whitelist.add(host);
+            else
+              whitelist.delete(host);
+            chrome.storage.local.set({whitelist: Array.from(whitelist)});
+          }
+        });
+      }
     }
 
     chrome.contextMenus.create({
