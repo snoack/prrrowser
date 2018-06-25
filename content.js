@@ -35,8 +35,9 @@ document.addEventListener("load", event =>
           }
         }
 
-        elem.style.setProperty("visibility", origVisibilityValue,
-                                             origVisibilityPriority);
+        if (elem.style.getPropertyValue("visibility") == "hidden")
+          elem.style.setProperty("visibility", origVisibilityValue,
+                                               origVisibilityPriority);
       }
     );
   }
