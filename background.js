@@ -2,12 +2,18 @@ const CACHE_SIZE = 150;
 const DEFAULT_TOPIC = "cats";
 
 let cache = new Map();
-let topic, whitelist;
+let topic = DEFAULT_TOPIC;
+let whitelist = new Set();
+let lastHost = null;
 
 function loadImage(keywords)
 {
   return fetch("https://www.google.com/search?tbm=isch&q=" +
-               encodeURIComponent(keywords + " " + topic))
+               encodeURIComponent(keywords + " " + topic), {
+                 headers: {
+                   "user-agent": navigator.userAgent.replace(/Android [\d.]+; Mobile/, "")
+                 }
+               })
     .then(response => response.text())
     .then(source =>
     {
@@ -96,27 +102,47 @@ function getScaledImage(keywords, width, height)
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
 {
-  if (whitelist.has(new URL(sender.tab.url).host))
+  switch (msg.type)
   {
-    sendResponse(null);
-    return false;
-  }
+    case "get-image":
+      if (whitelist.has(new URL(sender.tab.url).host))
+      {
+        sendResponse(null);
+        return false;
+      }
 
-  getScaledImage(msg.keywords, msg.width, msg.height).then(sendResponse);
-  return true;
+      getScaledImage(msg.keywords, msg.width, msg.height).then(sendResponse);
+      return true;
+
+    case "get-last-host":
+      sendResponse(lastHost);
+      return false;
+  }
 });
 
 function updateContextMenu()
 {
   chrome.tabs.query({active: true, lastFocusedWindow: true}, tabs =>
   {
-    chrome.contextMenus.removeAll();
+    let url = null;
+    let host = null;
 
     if (tabs.length > 0)
     {
-      let {protocol, host} = new URL(tabs[0].url);
+      let protocol;
 
-      if (protocol == "https:" || protocol == "http:")
+      ({url} = tabs[0]);
+      ({protocol, host} = new URL(url));
+
+      if (protocol != "https:" && protocol != "http:")
+        host = null;
+    }
+
+    if ("contextMenus" in chrome)
+    {
+      chrome.contextMenus.removeAll();
+
+      if (host)
       {
         chrome.contextMenus.create({
           type: "checkbox",
@@ -125,40 +151,47 @@ function updateContextMenu()
           contexts: ["browser_action"],
           onclick(details)
           {
+            let key = "disabled:" + host;
             if (details.checked)
-              whitelist.add(host);
+              chrome.storage.local.set({[key]: true});
             else
-              whitelist.delete(host);
-            chrome.storage.local.set({whitelist: Array.from(whitelist)});
+              chrome.storage.local.remove(key);
           }
         });
       }
-    }
 
-    chrome.contextMenus.create({
-      id: "dogs",
-      type: "checkbox",
-      checked: topic == "dogs",
-      title: "Show dogs",
-      contexts: ["browser_action"],
-      onclick(details)
-      {
-        if (details.checked)
-          chrome.storage.local.set({topic: "dogs"});
-        else
-          chrome.storage.local.remove("topic");
-      }
-    });
+      chrome.contextMenus.create({
+        id: "dogs",
+        type: "checkbox",
+        checked: topic == "dogs",
+        title: "Show dogs",
+        contexts: ["browser_action"],
+        onclick(details)
+        {
+          if (details.checked)
+            chrome.storage.local.set({topic: "dogs"});
+          else
+            chrome.storage.local.remove("topic");
+        }
+      });
+    }
+    else if (url != "about:addons")
+    {
+      lastHost = host;
+    }
   });
 }
 
 chrome.tabs.onActivated.addListener(updateContextMenu);
 
-chrome.windows.onFocusChanged.addListener(windowId =>
+if ("windows" in chrome)
 {
-  if (windowId != chrome.windows.WINDOW_ID_NONE)
-    updateContextMenu();
-});
+  chrome.windows.onFocusChanged.addListener(windowId =>
+  {
+    if (windowId != chrome.windows.WINDOW_ID_NONE)
+      updateContextMenu();
+  });
+}
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>
 {
@@ -166,19 +199,41 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) =>
     updateContextMenu();
 });
 
-chrome.storage.local.get(["topic", "whitelist"], items =>
+function processStorageItem(key, value)
 {
-  topic = items.topic || DEFAULT_TOPIC;
-  whitelist = new Set(items.whitelist);
+  if (key == "topic")
+  {
+    topic = value || DEFAULT_TOPIC;
+    cache.clear();
+  }
+  else if (key.startsWith("disabled:"))
+  {
+    let host = key.substr(9);
+    if (value)
+      whitelist.add(host);
+    else
+      whitelist.remove(host);
+  }
+}
+
+chrome.storage.local.get(null, items =>
+{
+  for (let key in items)
+    processStorageItem(key, items[key]);
   updateContextMenu();
 });
 
 chrome.storage.onChanged.addListener(changes =>
 {
-  if (changes.topic)
-  {
-    topic = changes.topic.newValue || DEFAULT_TOPIC;
-    cache.clear();
-    updateContextMenu();
-  }
+  for (let key in changes)
+    processStorageItem(key, changes[key].newValue);
+  updateContextMenu();
 });
+
+if (!("contextMenus" in chrome))
+{
+  chrome.browserAction.onClicked.addListener(() =>
+  {
+    chrome.runtime.openOptionsPage();
+  });
+}

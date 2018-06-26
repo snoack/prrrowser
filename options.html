@@ -1,6 +1,21 @@
 <!DOCTYPE HTML>
 <html>
+<head>
+<style>
+label {
+  display: block;
+  margin-bottom: .5em;
+}
+[hidden] {
+  display: none;
+}
+</style>
+</head>
 <body>
+<label id="disabled-option" hidden>
+  <input type="checkbox" name="disabled">
+  <span id="disabled-label"></span>
+</label>
 <label>
   <input type="checkbox" name="dogs">
   <span>Give me dogs!</span>

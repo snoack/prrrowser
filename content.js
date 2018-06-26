@@ -10,6 +10,7 @@ document.addEventListener("load", event =>
    
     chrome.runtime.sendMessage(
       {
+        type: "get-image",
         keywords: elem.alt,
         width: elem.naturalWidth,
         height: elem.naturalHeight

@@ -3,6 +3,11 @@
   "description": "Browser extension that replaces images with similar images showing cats",
   "version": "0.1",
   "manifest_version": 2,
+  "applications": {
+    "gecko": {
+      "id": "{2223e174-ae31-4b4c-a562-ae61043c947a}"
+    }
+  },
   "icons": {
     "16": "img/icon16.png",
     "48": "img/icon48.png",
