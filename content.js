@@ -1,7 +1,24 @@
 document.addEventListener("load", event =>
 {
   let elem = event.target;
-  if (elem.localName == "img" && elem.alt && elem.src != elem._newSrc)
+  let keywords = null;
+
+  if (elem.localName == "img" && elem.src != elem._newSrc)
+  {
+    keywords = elem.alt || elem.title;
+    if (!keywords)
+    {
+      let figure = elem.closest("figure");
+      if (figure)
+      {
+        let figcaption = figure.querySelector("figcaption");
+        if (figcaption)
+          keywords = figcaption.textContent.trim();
+      }
+    }
+  }
+
+  if (keywords)
   {
     let origVisibilityValue = elem.style.getPropertyValue("visibility");
     let origVisibilityPriority = elem.style.getPropertyPriority("visibility");
@@ -11,7 +28,7 @@ document.addEventListener("load", event =>
     chrome.runtime.sendMessage(
       {
         type: "get-image",
-        keywords: elem.alt,
+        keywords,
         width: elem.naturalWidth,
         height: elem.naturalHeight
       },
