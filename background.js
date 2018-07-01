@@ -1,4 +1,4 @@
-const CACHE_SIZE = 150;
+const CACHE_SIZE = 750;
 const DEFAULT_TOPIC = "cats";
 
 let cache = new Map();
@@ -11,7 +11,18 @@ function normalizeKeywords(keywords)
   return keywords.toLowerCase().replace(/[^a-z0-9\u0080-\uFFFF]+/g, " ").trim();
 }
 
-function loadImage(keywords)
+function loadImage(url)
+{
+  return new Promise((resolve, reject) =>
+  {
+    let image = new Image();
+    image.addEventListener("load", () => { resolve(image); });
+    image.addEventListener("error", reject);
+    image.src = url;
+  });
+}
+
+function findImage(keywords)
 {
   return fetch("https://www.google.com/search?tbm=isch&q=" +
                encodeURIComponent(keywords + " " + topic), {
@@ -25,56 +36,46 @@ function loadImage(keywords)
       let parser = new DOMParser();
       let doc = parser.parseFromString(source, "text/html");
       let {ou, tu} = JSON.parse(doc.querySelector(".rg_meta").textContent);
-
-      return new Promise((resolve, reject) =>
-      {
-        let image = new Image();
-        image.addEventListener("load", () =>
-        {
-          resolve(image);
-        });
-        image.addEventListener("error", () =>
-        {
-          let thumbnail = new Image();
-          thumbnail.addEventListener("load", () =>
-          {
-            resolve(thumbnail);
-          });
-          thumbnail.addEventListener("error", reject);
-          thumbnail.src = tu;
-        });
-        image.src = ou;
-      });
+      return loadImage(ou).catch(() => loadImage(tu));
     });
 }
 
-function loadImageCached(keywords)
+function findImageCached(keywords)
 {
-  let promise = cache.get(keywords);
+  let entry = cache.get(keywords);
+  let promise;
 
-  if (!promise)
+  if (!entry)
   {
-    promise = loadImage(keywords).catch(error =>
-    {
-      cache.delete(keywords);
-      throw error;
-    });
+    promise = findImage(keywords);
+    entry = {promise, url: null};
+
+    promise.then(
+      image => {
+        entry.url = image.src;
+        entry.promise = null;
+      },
+      error => {
+        cache.delete(keywords);
+      }
+    );
 
     while (cache.size >= CACHE_SIZE)
       cache.delete(cache.keys().next().value);
   }
   else
   {
+    promise = entry.promise || loadImage(entry.url);
     cache.delete(keywords);
   }
-  cache.set(keywords, promise);
 
+  cache.set(keywords, entry);
   return promise;
 }
 
 function getScaledImage(keywords, width, height)
 {
-  return loadImageCached(keywords).then(
+  return findImageCached(keywords).then(
     image =>
     {
       let dWidth = width;
@@ -244,3 +245,25 @@ if (!("contextMenus" in chrome))
     chrome.runtime.openOptionsPage();
   });
 }
+
+chrome.webRequest.onHeadersReceived.addListener(
+  details =>
+  {
+    if (document.location.href == details.originUrl ||
+        document.location.origin == details.initiator)
+    {
+      let headers = [];
+
+      for (let header of details.responseHeaders)
+      {
+        if (header.name.toLowerCase() != "cache-control")
+          headers.push(header);
+      }
+
+      headers.push({name: "Cache-Control", value: "max-age=31536000"});
+      return {responseHeaders: headers};
+    }
+  },
+  {"urls": ["<all_urls>"], "types": ["image"]},
+  ["blocking", "responseHeaders"]
+);
