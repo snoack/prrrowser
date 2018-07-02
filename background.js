@@ -24,6 +24,7 @@ function loadImage(keywords)
     {
       let parser = new DOMParser();
       let doc = parser.parseFromString(source, "text/html");
+      let {ou, tu} = JSON.parse(doc.querySelector(".rg_meta").textContent);
 
       return new Promise((resolve, reject) =>
       {
@@ -40,9 +41,9 @@ function loadImage(keywords)
             resolve(thumbnail);
           });
           thumbnail.addEventListener("error", reject);
-          thumbnail.src = doc.querySelector("#search img").src;
+          thumbnail.src = tu;
         });
-        image.src = JSON.parse(doc.querySelector(".rg_meta").textContent).ou;
+        image.src = ou;
       });
     });
 }
