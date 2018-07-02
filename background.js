@@ -6,6 +6,11 @@ let topic = DEFAULT_TOPIC;
 let whitelist = new Set();
 let lastHost = null;
 
+function normalizeKeywords(keywords)
+{
+  return keywords.toLowerCase().replace(/[^a-z0-9\u0080-\uFFFF]+/g, " ").trim();
+}
+
 function loadImage(keywords)
 {
   return fetch("https://www.google.com/search?tbm=isch&q=" +
@@ -111,7 +116,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) =>
         return false;
       }
 
-      getScaledImage(msg.keywords, msg.width, msg.height).then(sendResponse);
+      getScaledImage(normalizeKeywords(msg.keywords),
+                     msg.width, msg.height).then(sendResponse);
       return true;
 
     case "get-last-host":
