@@ -1,7 +1,7 @@
 {
   "name": "Prrrowser",
   "description": "Browser extension that replaces images with similar images showing cats",
-  "version": "0.2",
+  "version": "0.3",
   "manifest_version": 2,
   "applications": {
     "gecko": {
