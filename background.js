@@ -3,6 +3,7 @@ const DEFAULT_TOPIC = "cats";
 
 let cache = new Map();
 let topic = DEFAULT_TOPIC;
+let lowRes = false;
 let whitelist = new Set();
 let lastHost = null;
 
@@ -37,6 +38,10 @@ function findImage(keywords, format)
       let parser = new DOMParser();
       let doc = parser.parseFromString(source, "text/html");
       let {ou, tu} = JSON.parse(doc.querySelector(".rg_meta").textContent);
+
+      if (lowRes)
+        return loadImage(tu);
+
       return loadImage(ou).catch(() => loadImage(tu));
     });
 }
@@ -221,6 +226,11 @@ function processStorageItem(key, value)
     topic = value || DEFAULT_TOPIC;
     cache.clear();
   }
+  else if (key == "lowres")
+  {
+    lowRes = value;
+    cache.clear();
+  }
   else if (key.startsWith("disabled:"))
   {
     let host = key.substr(9);
@@ -236,6 +246,15 @@ chrome.storage.local.get(null, items =>
   for (let key in items)
     processStorageItem(key, items[key]);
   updateContextMenu();
+
+  if (!("lowres" in items))
+  {
+    chrome.runtime.getPlatformInfo(info =>
+    {
+      if (info.os == "android")
+        chrome.storage.local.set({lowres: true});
+    });
+  }
 });
 
 chrome.storage.onChanged.addListener(changes =>
