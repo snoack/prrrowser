@@ -29,8 +29,8 @@ document.addEventListener("load", event =>
       {
         type: "get-image",
         keywords,
-        width: elem.naturalWidth,
-        height: elem.naturalHeight
+        width: elem.width * window.devicePixelRatio,
+        height: elem.height * window.devicePixelRatio
       },
       url =>
       {
