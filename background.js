@@ -22,10 +22,11 @@ function loadImage(url)
   });
 }
 
-function findImage(keywords)
+function findImage(keywords, format)
 {
-  return fetch("https://www.google.com/search?tbm=isch&q=" +
-               encodeURIComponent(keywords + " " + topic), {
+  return fetch("https://www.google.com/search?tbm=isch" +
+               "&q=" + encodeURIComponent(keywords + " " + topic) +
+               "&tbs=iar:" + format, {
                  headers: {
                    "user-agent": navigator.userAgent.replace(/Android [\d.]+; Mobile/, "")
                  }
@@ -40,14 +41,15 @@ function findImage(keywords)
     });
 }
 
-function findImageCached(keywords)
+function findImageCached(keywords, format)
 {
-  let entry = cache.get(keywords);
+  let key = format + ":" + keywords;
+  let entry = cache.get(key);
   let promise;
 
   if (!entry)
   {
-    promise = findImage(keywords);
+    promise = findImage(keywords, format);
     entry = {promise, url: null};
 
     promise.then(
@@ -56,7 +58,7 @@ function findImageCached(keywords)
         entry.promise = null;
       },
       error => {
-        cache.delete(keywords);
+        cache.delete(key);
       }
     );
 
@@ -66,25 +68,30 @@ function findImageCached(keywords)
   else
   {
     promise = entry.promise || loadImage(entry.url);
-    cache.delete(keywords);
+    cache.delete(key);
   }
 
-  cache.set(keywords, entry);
+  cache.set(key, entry);
   return promise;
 }
 
 function getScaledImage(keywords, width, height)
 {
-  return findImageCached(keywords).then(
+  let dRatio = width / height;
+  let format = dRatio < 0.85 ? "t" :
+               dRatio < 1.15 ? "s" :
+               dRatio < 2.00 ? "w" : "xw";
+
+  return findImageCached(keywords, format).then(
     image =>
     {
       let dWidth = width;
       let dHeight = height;
-      let ratio = image.width / image.height;
-      if (ratio > dWidth / dHeight)
-        dHeight = dWidth / ratio;
+      let sRatio = image.width / image.height;
+      if (sRatio > dRatio)
+        dHeight = dWidth / sRatio;
       else
-        dWidth = dHeight * ratio;
+        dWidth = dHeight * sRatio;
 
       let canvas = document.createElement("canvas");
       canvas.width = width;
